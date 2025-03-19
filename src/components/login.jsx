@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
 
 function Login() {
   // Senior Login States
@@ -8,53 +10,98 @@ function Login() {
   const [seniorError, setSeniorError] = useState("");
   const [seniorShowPassword, setSeniorShowPassword] = useState(false);
 
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   // Junior Login States
   const [juniorEmail, setJuniorEmail] = useState("");
   const [juniorPassword, setJuniorPassword] = useState("");
   const [juniorError, setJuniorError] = useState("");
   const [juniorShowPassword, setJuniorShowPassword] = useState(false);
+  
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Determine whether to show the logo
+  const showLogo = ["/login", "/signup", "/SrDashboard"].includes(location.pathname);
 
   // Handle form submission
   async function handleSubmit(e, role) {
     e.preventDefault();
 
-    // Senior Login Validation
+    let email, password, setErrorState;
+
     if (role === "senior") {
-      if (seniorEmail === "" || seniorPassword === "") {
-        setSeniorError("Please fill in all fields");
-        return;
-      }
-      if (!seniorEmail.includes("@")) {
-        setSeniorError("Enter a valid email format");
-        return;
-      }
-      if (seniorPassword.length < 6) {
-        setSeniorError("Password must be at least 6 characters long");
-        return;
-      }
-      setSeniorError(""); // Clear error on successful submission
+      email = seniorEmail;
+      password = seniorPassword;
+      setErrorState = setSeniorError;
+    } else {
+      email = juniorEmail;
+      password = juniorPassword;
+      setErrorState = setJuniorError;
     }
 
-    // Junior Login Validation
-    if (role === "junior") {
-      if (juniorEmail === "" || juniorPassword === "") {
-        setJuniorError("Please fill in all fields");
-        return;
+    // Validation
+    if (!email || !password) {
+      setErrorState("Please fill in all fields");
+      return;
+    }
+    if (!email.includes("@")) {
+      setErrorState("Enter a valid email format");
+      return;
+    }
+    if (password.length < 6) {
+      setErrorState("Password must be at least 6 characters long");
+      return;
+    }
+
+    setErrorState("");
+    setError("");
+    setSuccess("");
+
+    // Check if user exists in localStorage
+    const existingUser = JSON.parse(localStorage.getItem("user"));
+    if (existingUser && existingUser.email === email && existingUser.password === password) {
+      setSuccess("Login successful");
+      setError("");
+      role === "junior" ? navigate("/JrDashboard") : navigate("/SrDashboard");
+      return;
+    }
+
+    // Login API
+    try {
+      const loginData = {
+        email,
+        password,
+      };
+      const response = await axios.post("http://localhost:3000/login", loginData);
+
+      if (response.status === 200) {
+        setSuccess(response.data.message);
+        setError("");
+        role === "junior" ? navigate("/JrDashboard") : navigate("/SrDashboard");
+      } else {
+        setError(response.data.error);
+        setSuccess("");
       }
-      if (!juniorEmail.includes("@")) {
-        setJuniorError("Enter a valid email format");
-        return;
-      }
-      if (juniorPassword.length < 6) {
-        setJuniorError("Password must be at least 6 characters long");
-        return;
-      }
-      setJuniorError(""); // Clear error on successful submission
+    } catch (err) {
+      setError(err.response?.data?.error || "An error occurred during login");
+      setSuccess("");
     }
   }
 
   // Render Login Card
-  const renderLoginCard = (role, email, setEmail, password, setPassword, error, setError, showPassword, setShowPassword) => (
+  const renderLoginCard = (
+    role,
+    email,
+    setEmail,
+    password,
+    setPassword,
+    error,
+    setError,
+    showPassword,
+    setShowPassword
+  ) => (
     <div className="login-card w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow">
       <h2 className="text-3xl font-bold text-gray-800 text-center mb-6">{role} Login</h2>
 
@@ -107,7 +154,20 @@ function Login() {
   );
 
   return (
-    <div className="login-container min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 p-4">
+    <div className="login-container min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 p-4">
+      {/* Logo */}
+      {showLogo && (
+        <div className="App-header mb-8">
+          <a
+            href="/"
+            className="flex items-center justify-center gap-2 text-5xl font-extrabold text-white hover:text-gray-200 transition duration-300"
+          >
+            <span className="text-yellow-300">Exam</span>Mate.io
+          </a>
+        </div>
+      )}
+
+      {/* Login Cards */}
       <div className="login-wrapper grid grid-cols-1 md:grid-cols-2 gap-10">
         {renderLoginCard(
           "Senior",
