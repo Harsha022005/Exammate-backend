@@ -122,29 +122,30 @@ app.post("/login", async (req, res) => {
 // Upload files route
 app.post("/SrDashboard", upload.array("files", 10), async (req, res) => {
   try {
-    const files = req.files;
     const { username, password, subject, links } = req.body;
+    const files = req.files;
 
     console.log("Files received:", files);
     console.log("Body received:", req.body);
+
+    if (!username || !password || !subject || !links) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
 
     if (!files || files.length === 0) {
       return res.status(400).json({ error: "No files uploaded" });
     }
 
-    // Store each file path in the database
-    const filePaths = files.map(file => file.path); // Extract file paths
+    // Ensure paths are correctly formatted
+    const filePaths = files.map((file) => file.path);
 
-    try {
-      await db.query(
-        "INSERT INTO files (username, password, file_paths, links, subject) VALUES ($1, $2, $3, $4, $5)",
-        [username, password, JSON.stringify(filePaths), links, subject]  // Store as JSON string
-      );
-      res.json({ message: "Files uploaded and saved successfully" });
-    } catch (error) {
-      console.error("Database error:", error);
-      res.status(500).json({ error: "Database Error" });
-    }
+    // Insert into the database
+    await db.query(
+      "INSERT INTO files (username, password, file_paths, links, subject) VALUES ($1, $2, $3, $4, $5)",
+      [username, password, JSON.stringify(filePaths), links, subject]
+    );
+
+    res.status(201).json({ message: "Files uploaded and saved successfully" });
   } catch (error) {
     console.error("File upload error:", error);
     res.status(500).json({ error: "Internal Server Error" });
